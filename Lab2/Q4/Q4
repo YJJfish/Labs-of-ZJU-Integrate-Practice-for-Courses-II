@@ -1,0 +1,39 @@
+#!/bin/bash
+#程序名：Q4
+#姓名学号：尤锦江 3190102352
+#程序功能：输入一个字符串，忽略（删除）非字母后，检测该字符串是否为回文(palindrome)
+
+echo "$0: Input a string in one line:"
+#把字符串读到String变量中
+read -e String
+#获取字符串的长度
+Length=${#String}
+for ((i=0; i<$Length; i++))
+	do
+	#遍历字符串中的每个字符，删除非字母字符
+		Char=${String:i:1}
+		if [[ $Char =~ [A-Za-z] ]]
+			then
+			#如果是字母，就添加到NewString变量中
+				NewString=$NewString$Char
+		fi
+	done
+#输出NewString，用于Debug
+echo "$0: After deleting non-alpha characters: $NewString"
+#获取新字符串的长度
+Length=${#NewString}
+for ((i=0; i<$(($Length/2)); i++))
+	do
+	#一重循环判断是否回文
+		Char1=${NewString:i:1}
+		Char2=${NewString:$(($Length-1-$i)):1}
+		if [ $Char1 != $Char2 ]
+			then
+			#若Char1不等于Char2，说明不是回文
+				echo "$0: It is not palindrome."
+				exit 0
+		fi
+	done
+#是回文
+echo "$0: It is palindrome."
+exit 0

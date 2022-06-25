@@ -1,0 +1,80 @@
+#!/bin/bash
+#程序名：dirsync
+#姓名学号：尤锦江 3190102352
+#程序功能：实现文件备份和同步的shell脚本程序
+
+#将目标目录和源目录对比。
+#1.如果目标目录有文件而源目录没有、或文件类型不一致，则把目标目录中的文件删除
+#2.如果目标目录有文件且源目录也有相同类型的文件，但目标目录更新，则替换源目录的旧文件
+function Backward(){
+	BackUpPos=$2"/*"
+	for file2 in $BackUpPos
+		do
+			#根据目标目录中的file2，生成源目录的文件路径file1
+			file1="${file2/#$2/$1}"
+			if [[ -d "$file2" ]]; then
+				if [[ !(-d "$file1") ]]; then
+					rm -rf $file2
+				else
+					Backward "$file1" "$file2"
+				fi
+			else
+				if [[ !(-e "$file1") || (-d "$file1") ]]; then
+					rm -rf $file2
+				elif [[ $file1 -ot $file2 ]]; then
+					cp -fp $file2 $file1
+				fi
+			fi
+		done
+}
+
+#将源目录和目标目录对比。
+#执行完Backward函数后，可以保证源目录中没有的文件在目标目录中一定也没有；目标目录中有的文件在源目录中一定有
+#所以只需要考虑源目录中有而目标目录没有的文件
+#如果源目录有文件而目标目录没有，则备份一份到目标目录
+function Forward(){
+	SourcePos=$1"/*"
+	for file1 in $SourcePos
+		do
+			#根据源目录中的file1，生成目标目录的文件路径file2
+			file2="${file1/#$1/$2}"
+			if [[ -d "$file1" ]]; then
+				if [[ !(-d "$file2") ]]; then
+					cp -rfp $file1 $file2
+				else
+					Forward "$file1" "$file2"
+				fi
+			else
+				if [[ !(-e "$file2") || (-d "$file2") ]]; then
+					cp -fp $file1 $file2
+				elif [[ $file2 -ot $file1 ]]; then
+					cp -fp $file1 $file2
+				fi
+			fi
+		done
+}
+
+
+set `echo $1 $2`
+
+if [[ $# -ne 2 || !(-d $1) ]]; then
+	#参数个数必须为2，且第一个参数必须为目录文件
+	echo "Usage: Input two parameters as two directorys."
+	exit 1
+fi
+
+if [[ !(-d $2) ]]; then
+	#如果目标目录不存在，则直接整个拷贝
+	if [[ -e $2 ]]; then
+		rm -rf $2
+	fi
+	cp -rp $1 $2
+	echo "$0: Created new backup files."
+	exit 0
+fi
+
+#根据前面的函数介绍，先Backward再Forward就能实现备份
+Backward $1 $2
+Forward $1 $2
+echo "$0: Updated backup files."
+exit 0

@@ -1,0 +1,254 @@
+#!/bin/bash
+#程序名：Q6
+#姓名学号：尤锦江 3190102352
+#程序功能：4人打扑克比大小
+
+#初始化
+function Init(){
+	#初始化花色数组和牌号数组，从而可以根据下标确定花色符号（下标0～3）、牌号（下标0～12）
+	ColorPattern=("♠" "♥" "♦" "♣")
+	DigitPattern=("A" "2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K")
+	#初始化分数数组
+	Score=(0 0 0 0)
+	for ((i=0;i<13;i++))
+		do
+		#一开始，顺序排列13*4张牌，每个牌分别要记录牌号和花色
+			CardMagni[$(($i*4+0))]=$i
+			CardColor[$(($i*4+0))]=0
+			CardMagni[$(($i*4+1))]=$i
+			CardColor[$(($i*4+1))]=1
+			CardMagni[$(($i*4+2))]=$i
+			CardColor[$(($i*4+2))]=2
+			CardMagni[$(($i*4+3))]=$i
+			CardColor[$(($i*4+3))]=3
+		done
+}
+
+#对52张牌进行打乱
+#打乱过程：m从51遍历到1，每次生成一个[0, m-1]的随机整数，和第m张牌交换
+function Shuffle(){
+	for ((m=51;m>0;m--))
+		do
+			#$RANDOM的范围是0~32767，要把它放缩到0~m-1，就需要浮点数乘除法。需要用到bc计算器
+			target=`echo "scale=10;$RANDOM/32768.0*$m"|bc`
+			#取整，也就是删除小数点及小数点以后的字符
+			target=${target%.*}
+			#交换第m张牌和第target张牌
+			temp=${CardMagni[$target]}
+			CardMagni[$target]=${CardMagni[$m]}
+			CardMagni[$m]=$temp
+			temp=${CardColor[$target]}
+			CardColor[$target]=${CardColor[$m]}
+			CardColor[$m]=$temp
+		done
+}
+
+#对$1到$2之间的牌进行冒泡排序
+function Sort(){
+	for ((i=$2;i>$1;i--))
+		do
+			for ((j=$1;j<i;j++))
+				do
+					if [[ ${CardMagni[$j]} -gt ${CardMagni[$j+1]} || ${CardMagni[$j]} -eq ${CardMagni[$j+1]} && ${CardColor[$j]} -gt ${CardColor[$j+1]} ]]; then
+						temp=${CardMagni[$j]}
+						CardMagni[$j]=${CardMagni[$j+1]}
+						CardMagni[$j+1]=$temp
+						temp=${CardColor[$j]}
+						CardColor[$j]=${CardColor[$j+1]}
+						CardColor[$j+1]=$temp
+					fi
+				done
+		done
+}
+
+#我们规定：下标为0~12的牌是Player1的，13~25的牌是Player2的，26~38的牌是Player3的，39~51的牌是Player4的
+#已经出掉的牌放到末尾，例如Player1已经出了2张牌，则他实际拥有的牌下标为0~10，而下标11和12对应的牌无效
+#传入一个参数$1=0或1或2或3，同时传入一个参数$2表示剩余牌数量，输出Player($1+1)拥有的$2张牌
+function PrintPlayer(){
+	echo "Player $(($1+1)):"
+	for ((i=13*$1;i<13*$1+$2;i++))
+		do
+			printf "%8s" $(($i-13*$1+1))
+		done
+	echo
+	for ((i=13*$1;i<13*$1+$2;i++))
+		do
+			printf "    "
+			if [[ CardColor[$i] -eq 1 || CardColor[$i] -eq 2 ]]; then
+			#红色
+				printf "\e[1;31;47m%4s\e[0m" "${DigitPattern[${CardMagni[$i]}]}"
+			else
+			#黑色
+				printf "\e[1;30;47m%4s\e[0m" "${DigitPattern[${CardMagni[$i]}]}"
+			fi
+		done
+	echo
+	for ((i=13*$1;i<13*$1+$2;i++))
+		do
+			printf "    "
+			if [[ CardColor[$i] -eq 1 || CardColor[$i] -eq 2 ]]; then
+			#红色
+				printf "\e[1;31;47m %3s  \e[0m" "${ColorPattern[${CardColor[$i]}]}"
+			else
+			#黑色
+				printf "\e[1;30;47m %3s  \e[0m" "${ColorPattern[${CardColor[$i]}]}"
+			fi
+		done
+	echo
+	for ((i=13*$1;i<13*$1+$2;i++))
+		do
+			printf "    "
+			if [[ CardColor[$i] -eq 1 || CardColor[$i] -eq 2 ]]; then
+			#红色
+				printf "\e[1;31;47m    \e[0m"
+			else
+			#黑色
+				printf "\e[1;30;47m    \e[0m"
+			fi
+		done
+	echo
+}
+
+#输出四个人的分数
+function PrintScore(){
+	echo "Player 1: ${Score[0]}分"
+	echo "Player 2: ${Score[1]}分"
+	echo "Player 3: ${Score[2]}分"
+	echo "Player 4: ${Score[3]}分"
+}
+
+#每一轮四个人各出一张牌，出的牌存放到SelectedColor和SelectedMagni数组
+function PrintSelected(){
+	echo "第$(($Round+1))轮结果:"
+	for ((i=0;i<4;i++))
+		do
+			printf "    "
+			if [[ SelectedColor[$i] -eq 1 || SelectedColor[$i] -eq 2 ]]; then
+			#红色
+				printf "\e[1;31;47m%4s\e[0m" "${DigitPattern[${SelectedMagni[$i]}]}"
+			else
+			#黑色
+				printf "\e[1;30;47m%4s\e[0m" "${DigitPattern[${SelectedMagni[$i]}]}"
+			fi
+		done
+	echo
+	for ((i=0;i<4;i++))
+		do
+			printf "    "
+			if [[ SelectedColor[$i] -eq 1 || SelectedColor[$i] -eq 2 ]]; then
+			#红色
+				printf "\e[1;31;47m %3s  \e[0m" "${ColorPattern[${SelectedColor[$i]}]}"
+			else
+			#黑色
+				printf "\e[1;30;47m %3s  \e[0m" "${ColorPattern[${SelectedColor[$i]}]}"
+			fi
+		done
+	echo
+	for ((i=0;i<4;i++))
+		do
+			printf "    "
+			if [[ SelectedColor[$i] -eq 1 || SelectedColor[$i] -eq 2 ]]; then
+			#红色
+				printf "\e[1;31;47m    \e[0m"
+			else
+			#黑色
+				printf "\e[1;30;47m    \e[0m"
+			fi
+		done
+	echo
+}
+
+#删除Player($1+1)的第$2张牌
+function DeleteCard(){
+	for ((i=$1*13+$2-1;i<$1*13+12;i++))
+		do
+			CardMagni[$i]=${CardMagni[$((i+1))]}
+			CardColor[$i]=${CardColor[$((i+1))]}
+		done
+}
+
+#根据四个人所出的牌进行赋分
+#自己所出的牌比多少个人大，就加多少分
+function UpdateScore(){
+	for ((i=0;i<4;i++))
+	#遍历每个Player
+		do
+			NewScore=0
+			for ((j=0;j<4;j++))
+			#遍历其他Player，判断有几个人的牌比自己的小
+				do
+					if [[ ${SelectedMagni[$j]} -lt ${SelectedMagni[$i]} ]]; then
+						NewScore=$(($NewScore+1))
+					fi
+				done
+			echo "Player $(($i+1)) 得$NewScore分"
+			Score[$i]=$((${Score[$i]}+$NewScore))
+		done
+}
+
+#清屏，声明全局数组变量
+clear
+declare -a CardMagni[52]
+declare -a CardColor[52]
+declare -a ColorPattern[4]
+declare -a DigitPattern[13]
+declare -a Score[4]
+declare -a SelectedMagni[4]
+declare -a SelectedColor[4]
+
+#初始化、洗牌、然后为4个Player理牌
+Init
+Shuffle
+Sort 0 12
+Sort 13 25
+Sort 26 38
+Sort 39 51
+echo "洗牌完毕，按回车键继续"
+read
+
+#进行13轮游戏
+for ((Round=0;Round<13;Round++))
+	do
+	#遍历每一轮
+		for ((p=0;p<4;p++))
+			do
+			#遍历每个Player
+				clear
+				PrintScore
+				echo "第$(($Round+1))轮:"
+				PrintPlayer $p $((13-$Round))
+				echo
+				echo -n "选择出牌编号:"
+				#读入出牌编号
+				read Selected
+				while [[ Selected -lt 1 || Selected -gt $((13-Round)) ]]
+					#出牌编号必须是1 ~ 13-Round之间的整数
+					do
+						clear
+						PrintScore
+						echo "第$(($Round+1))轮:"
+						PrintPlayer $p $((13-$Round))
+						echo
+						echo -n "出牌编号必须是[1,$((13-Round))]内的整数! 重新选择出牌编号:"
+						read Selected
+					done
+				#把所出的牌存入SelectedMagni和SelectedColor数组，用于轮末分数结算
+				SelectedMagni[$p]=${CardMagni[$(($Selected+$p*13-1))]}
+				SelectedColor[$p]=${CardColor[$(($Selected+$p*13-1))]}
+				#删除这张出掉的牌
+				DeleteCard $p $Selected
+			done
+		clear
+		#结算分数
+		PrintScore
+		PrintSelected
+		UpdateScore
+		read
+	done
+clear
+
+#输出结局分数
+echo "结局:"
+PrintScore
+read
+clear

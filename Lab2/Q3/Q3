@@ -1,0 +1,61 @@
+#!/bin/bash
+#程序名：Q3
+#姓名学号：尤锦江 3190102352
+#程序功能：统计指定目录下的普通文件、子目录及可执行文件的数目，统计该目录下所有普通文件字节数总和，目录的路径名字由参数传入
+
+#递归函数
+function Recursion(){
+	Pos=$1"/*"
+	for file in $Pos
+		do
+		#穷举目录下所有的文件
+			if [ -d "$file" ]
+				then
+				#目录文件
+					DCount=$(($DCount+1))
+					Recursion "$file"
+			elif [ -x "$file" ]
+				then
+				#可执行文件
+					XCount=$(($XCount+1))
+			elif [ -f "$file" ]
+				then
+				#普通文件
+					set -- `ls -l $file`
+					BCount=$(($BCount+$5))
+					FCount=$(($FCount+1))
+			fi
+		done
+}
+
+#全局变量定义
+#目录文件的个数
+DCount=0
+#普通文件的个数
+FCount=0
+#可执行文件的个数
+XCount=0
+#普通文件的字节数总和
+BCount=0
+
+if [ $# -ne 1 ]
+	then
+	#参数不等于1，报错
+		echo "Usage: Input a parameter as a directory"
+		exit 1
+fi
+
+if [ -d $1 ]
+	then
+	#参数是一个目录，符合条件
+		echo "\"$1\" has:"
+		Recursion $1
+		echo "    $FCount ordinary file(s)"
+		echo "    $DCount directory(s)"
+		echo "    $XCount executable file(s)"
+		echo "    $BCount byte(s) in ordinary files"
+	else
+	#参数不是一个目录文件，报错
+		echo "Error: Argument must be a directory"
+		exit 1
+fi
